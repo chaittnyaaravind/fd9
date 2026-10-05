@@ -1,12 +1,15 @@
 import { create } from "zustand";
 import type { OfferedFile } from "@fd9/protocol";
 import {
+  deriveConnectionStage,
+  describeConnectionFailure,
   negotiatedMaxChunkSize,
   openNegotiatedChannels,
   toRTCIceServers,
   watchConnectionDiagnostics,
   wireSignalingForPeerConnection,
   type ConnectionDiagnostics,
+  type ConnectionStage,
   type LinkQuality
 } from "../lib/rtc.js";
 import { SignalingClient, type SignalingState } from "../lib/signalingClient.js";
@@ -52,6 +55,8 @@ interface Fd9State {
   /** True when this session was started with `?forceRelay=1` (the decisive TURN test). */
   forcedRelay: boolean;
   diagnostics: ConnectionDiagnostics;
+  /** Derived from `diagnostics` (see rtc.ts's deriveConnectionStage) — meaningful only while phase === "connecting"; stage-aware UI copy reads this, never fabricates its own narration. */
+  connectionStage: ConnectionStage;
   signalingState: SignalingState | "idle";
   controlChannelState: RTCDataChannelState | "none";
   dataChannelState: RTCDataChannelState | "none";
@@ -112,9 +117,16 @@ const TERMINAL_PHASES = new Set<ConnectionPhase>(["completed", "failed", "closed
  */
 const CONNECTION_ESTABLISH_TIMEOUT_MS = 30000;
 
+/**
+ * Sentinel only — carries no diagnostics-derived message itself. The catch
+ * site (setupPeerConnection) computes the actual user-facing text from the
+ * LATEST real diagnostics via rtc.ts's describeConnectionFailure(), so the
+ * message is always evidence-graded, never a blind assertion baked in here
+ * before we know what ICE actually observed.
+ */
 class ConnectionBlockedError extends Error {
   constructor() {
-    super("Your current network blocks the connection method required for file transfer. Try another network.");
+    super("Connection establishment timed out.");
     this.name = "ConnectionBlockedError";
   }
 }
@@ -151,6 +163,15 @@ let receiverEngine: ReceiverEngine | null = null;
 // transport-layer doesn't already expose; purely an observer.
 let lastThroughputSampleAt = 0;
 let lastThroughputBytes = 0;
+// Cached per-session so the TURN-credential round trip can be KICKED OFF the
+// moment signaling opens (overlapping it with "waiting for peer" time, which
+// in practice dwarfs the credential fetch) instead of only starting once
+// setupPeerConnection() is reached. Idempotent — a second call while one is
+// already in flight (or already resolved) returns the SAME promise, never a
+// duplicate `request-turn-credentials` send. Reset to null in teardown() so
+// a new session never reuses a prior session's (possibly stale, possibly
+// never-resolved) request.
+let iceServersRequest: Promise<RTCIceServer[]> | null = null;
 let wakeLock: WakeLockController | null = null;
 let stopLinkWatch: (() => void) | null = null;
 let stopChannelWatch: (() => void) | null = null;
@@ -233,6 +254,7 @@ function teardown(): void {
   wakeLock = null;
   lastThroughputSampleAt = 0;
   lastThroughputBytes = 0;
+  iceServersRequest = null;
 }
 
 export const useSessionStore = create<Fd9State>((set, get) => {
@@ -241,11 +263,20 @@ export const useSessionStore = create<Fd9State>((set, get) => {
     set((state) => ({ connectionTimeline: [...state.connectionTimeline.slice(-29), { t: Date.now(), label }] }));
   }
 
-  async function setupPeerConnection(isInitiator: boolean): Promise<{ control: ReturnType<typeof openNegotiatedChannels>["control"]; lanes: ReturnType<typeof openNegotiatedChannels>["lanes"] }> {
-    set({ phase: "connecting" });
-
-    const directOnly = new URLSearchParams(window.location.search).get("noTurn") === "1";
-    const allIceServers = await new Promise<RTCIceServer[]>((resolve) => {
+  /**
+   * Fire-and-cache: starts (or reuses) the `request-turn-credentials` round
+   * trip. Called EARLY (right after signaling opens, well before a peer has
+   * even joined) so the wait overlaps with "waiting for peer" time instead
+   * of serially delaying setupPeerConnection() once a peer finally shows up
+   * — in the common case this makes the later `await` resolve immediately.
+   * Idempotent: a second call (e.g. setupPeerConnection() itself also wants
+   * this) while one is in flight or already resolved returns the SAME
+   * promise — never a duplicate send. Direct-only filtering is baked into
+   * the cached result since `noTurn` is a static, session-constant URL param.
+   */
+  function requestIceServers(directOnly: boolean): Promise<RTCIceServer[]> {
+    if (iceServersRequest) return iceServersRequest;
+    iceServersRequest = new Promise<RTCIceServer[]>((resolve) => {
       const unsub = signaling!.onMessage((msg) => {
         if (msg.type === "turn-credentials") {
           unsub();
@@ -253,17 +284,26 @@ export const useSessionStore = create<Fd9State>((set, get) => {
         }
       });
       signaling!.send({ type: "request-turn-credentials" });
-    });
-    // Direct-only diagnostic mode (spec Phase 4): strip every TURN/TURNS URL
-    // before it ever reaches RTCPeerConnection, so relay candidates literally
-    // cannot exist — if direct/STUN genuinely can't connect, ICE fails
-    // visibly instead of silently succeeding via relay. STUN entries are
-    // kept (they only ever yield host/srflx candidates, never relay).
-    const iceServers = directOnly
-      ? allIceServers
-          .map((s) => ({ ...s, urls: (Array.isArray(s.urls) ? s.urls : [s.urls]).filter((u) => u.startsWith("stun:")) }))
-          .filter((s) => s.urls.length > 0)
-      : allIceServers;
+    }).then((allIceServers) =>
+      // Direct-only diagnostic mode (spec Phase 4): strip every TURN/TURNS
+      // URL before it ever reaches RTCPeerConnection, so relay candidates
+      // literally cannot exist — if direct/STUN genuinely can't connect,
+      // ICE fails visibly instead of silently succeeding via relay. STUN
+      // entries are kept (they only ever yield host/srflx candidates, never relay).
+      directOnly
+        ? allIceServers
+            .map((s) => ({ ...s, urls: (Array.isArray(s.urls) ? s.urls : [s.urls]).filter((u) => u.startsWith("stun:")) }))
+            .filter((s) => s.urls.length > 0)
+        : allIceServers
+    );
+    return iceServersRequest;
+  }
+
+  async function setupPeerConnection(isInitiator: boolean): Promise<{ control: ReturnType<typeof openNegotiatedChannels>["control"]; lanes: ReturnType<typeof openNegotiatedChannels>["lanes"] }> {
+    set({ phase: "connecting" });
+
+    const directOnly = new URLSearchParams(window.location.search).get("noTurn") === "1";
+    const iceServers = await requestIceServers(directOnly);
     pushTimeline(directOnly ? "DIRECT-ONLY TEST: TURN servers stripped from ICE config" : "ICE servers received");
 
     const forcedRelay = resolveForceRelay();
@@ -338,7 +378,7 @@ export const useSessionStore = create<Fd9State>((set, get) => {
         );
         lastCandidateType = diagnostics.localCandidateType;
       }
-      set({ diagnostics, linkQuality: diagnostics.quality });
+      set({ diagnostics, linkQuality: diagnostics.quality, connectionStage: deriveConnectionStage(diagnostics) });
     });
 
     wireSignalingForPeerConnection(signaling!, pc);
@@ -354,6 +394,12 @@ export const useSessionStore = create<Fd9State>((set, get) => {
     } catch (err) {
       pc?.close();
       pc = null;
+      if (err instanceof ConnectionBlockedError) {
+        // Compute the user-facing message NOW, from whatever diagnostics
+        // were actually observed before giving up — never the blind,
+        // evidence-free assertion this used to carry by default.
+        throw new Error(describeConnectionFailure(get().diagnostics));
+      }
       throw err;
     }
     set({ phase: "connected" });
@@ -443,6 +489,7 @@ export const useSessionStore = create<Fd9State>((set, get) => {
       readyFiles: [],
       incomingOffer: null,
       diagnostics: DEFAULT_DIAGNOSTICS,
+      connectionStage: "preparing",
       controlChannelState: "none",
       dataChannelState: "none",
       bufferedAmount: 0,
@@ -468,6 +515,9 @@ export const useSessionStore = create<Fd9State>((set, get) => {
     signaling.send({ type: "create-room" });
     bindLifecycleSignaling(signaling);
     savedIsInitiator = true;
+    // Kicked off now, not awaited — overlaps the TURN-credential round trip
+    // with "waiting for peer" time (see requestIceServers's doc comment).
+    void requestIceServers(new URLSearchParams(window.location.search).get("noTurn") === "1");
 
     signaling.onMessage((msg) => {
       if (msg.type === "room-created") {
@@ -716,6 +766,7 @@ export const useSessionStore = create<Fd9State>((set, get) => {
     wakeLockActive: false,
     forcedRelay: false,
     diagnostics: DEFAULT_DIAGNOSTICS,
+    connectionStage: "preparing",
     signalingState: "idle",
     controlChannelState: "none",
     dataChannelState: "none",
@@ -765,6 +816,7 @@ export const useSessionStore = create<Fd9State>((set, get) => {
         readyFiles: [],
         incomingOffer: null,
         diagnostics: DEFAULT_DIAGNOSTICS,
+        connectionStage: "preparing",
         controlChannelState: "none",
         dataChannelState: "none",
         bufferedAmount: 0,
@@ -789,6 +841,9 @@ export const useSessionStore = create<Fd9State>((set, get) => {
 
       signaling.send({ type: "join-room", code: joinBy.code, roomId: joinBy.roomId });
       bindLifecycleSignaling(signaling);
+      // Kicked off now, concurrently with the join-room round trip rather
+      // than serially after it — same reasoning as the sender side.
+      void requestIceServers(new URLSearchParams(window.location.search).get("noTurn") === "1");
 
       signaling.onMessage((msg) => {
         if (msg.type === "joined") {
@@ -867,6 +922,7 @@ export const useSessionStore = create<Fd9State>((set, get) => {
         wakeLockActive: false,
         forcedRelay: false,
         diagnostics: DEFAULT_DIAGNOSTICS,
+        connectionStage: "preparing",
         signalingState: "idle",
         controlChannelState: "none",
         dataChannelState: "none",

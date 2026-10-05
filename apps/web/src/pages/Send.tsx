@@ -53,6 +53,7 @@ export function SendPage({ onExit }: Props) {
         linkQuality={state.linkQuality}
         wakeLockActive={state.wakeLockActive}
         errorMessage={state.errorMessage}
+        connectionStage={state.connectionStage}
       />
       {state.phase === "waiting-for-peer" ? <QrPairing code={state.roomCode} link={state.roomLink} /> : null}
       {state.files.length > 0 ? (

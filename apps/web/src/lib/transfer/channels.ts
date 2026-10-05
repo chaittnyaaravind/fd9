@@ -4,6 +4,26 @@ export interface ControlChannel {
   readonly readyState?: RTCDataChannelState;
 }
 
+/** Real, measured per-lane transport stats — never fabricated. A transport that can't produce one of these fields reports it as null rather than guessing. */
+export interface TransportLaneStats {
+  bytesSent: number;
+  bytesReceived: number;
+  rttMs: number | null;
+  localCandidateType: string | null;
+  remoteCandidateType: string | null;
+  relayProtocol: string | null;
+}
+
+/**
+ * The transport-lane contract (Milestone 1, item 3): the smallest interface
+ * sender.ts/receiver.ts/TransportPool actually need from "one lane of bulk
+ * data transfer" — deliberately NOT a copy of the RTCDataChannel API.
+ * `RTCDataChannelAdapter` (rtc.ts) is the WebRTC implementation of this
+ * contract; a future WebTransport or HTTP-stream lane would implement the
+ * exact same shape without TransportPool/sender/receiver ever knowing the
+ * difference. `getStats` is optional — not every transport can report every
+ * field, and no existing test double needs to implement it.
+ */
 export interface DataChannel {
   send(buffer: ArrayBuffer): void;
   readonly bufferedAmount: number;
@@ -11,6 +31,7 @@ export interface DataChannel {
   onBufferedAmountLow(handler: () => void): void;
   onMessage(handler: (buffer: ArrayBuffer) => void): void;
   readonly readyState?: RTCDataChannelState;
+  getStats?(): Promise<TransportLaneStats | null>;
 }
 
 /** Test double for ControlChannel: delivers to a linked peer on the next microtask. */

@@ -44,7 +44,7 @@ function finalizeLaneHandle(pc: RTCPeerConnection, dataRaw: RTCDataChannel): Pee
     }
   };
   return {
-    dataChannel: new RTCDataChannelAdapter(dataRaw),
+    dataChannel: new RTCDataChannelAdapter(dataRaw, pc),
     pc,
     onFailed: (cb) => {
       failedCb = cb;

@@ -1,6 +1,6 @@
 import { CHUNK_FRAME, DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, type TurnServer } from "@fd9/protocol";
 import type { SignalingClient } from "./signalingClient.js";
-import type { ControlChannel, DataChannel } from "./transfer/channels.js";
+import type { ControlChannel, DataChannel, TransportLaneStats } from "./transfer/channels.js";
 
 export type LinkQuality = "direct" | "relayed" | "unknown";
 
@@ -127,9 +127,47 @@ class RTCControlChannelAdapter implements ControlChannel {
   }
 }
 
+/**
+ * Reads the selected candidate-pair's real stats for a PeerConnection — the
+ * same extraction the diagnostic benchmark tool proved out, now available
+ * to any lane (production or benchmark) through the transport contract
+ * itself instead of being a benchmark-only helper. Returns null if nothing
+ * is selected yet rather than fabricating zeros.
+ */
+async function readSelectedPairStats(pc: RTCPeerConnection): Promise<TransportLaneStats | null> {
+  try {
+    const stats = await pc.getStats();
+    const reports = Array.from(stats.values());
+    const candidates = new Map<string, RTCIceCandidate & { candidateType?: string; relayProtocol?: string }>();
+    for (const r of reports) {
+      if (r.type === "local-candidate" || r.type === "remote-candidate") candidates.set(r.id, r);
+    }
+    const pair = reports.find((r) => r.type === "candidate-pair" && (r.state === "succeeded" || r.nominated)) as
+      | (RTCIceCandidatePairStats & { localCandidateId?: string; remoteCandidateId?: string })
+      | undefined;
+    if (!pair) return null;
+    const lc = pair.localCandidateId ? candidates.get(pair.localCandidateId) : undefined;
+    const rc = pair.remoteCandidateId ? candidates.get(pair.remoteCandidateId) : undefined;
+    return {
+      bytesSent: typeof pair.bytesSent === "number" ? pair.bytesSent : 0,
+      bytesReceived: typeof pair.bytesReceived === "number" ? pair.bytesReceived : 0,
+      rttMs: typeof pair.currentRoundTripTime === "number" ? Math.round(pair.currentRoundTripTime * 1000) : null,
+      localCandidateType: lc?.candidateType ?? null,
+      remoteCandidateType: rc?.candidateType ?? null,
+      relayProtocol: lc?.relayProtocol ?? rc?.relayProtocol ?? null
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Exported so peerLane.ts can wrap an independent RTCPeerConnection's bulk DataChannel in the exact same adapter the primary connection uses — a lane's implementation (same-PC sibling channel vs. its own PC) is invisible past this point. */
 export class RTCDataChannelAdapter implements DataChannel {
-  constructor(private readonly ch: RTCDataChannel) {
+  constructor(
+    private readonly ch: RTCDataChannel,
+    /** The lane's own RTCPeerConnection — getStats() is PC-scoped, not channel-scoped, per the WebRTC spec. For the primary connection's lanes this reports the shared connection's stats (accurate: they share one SCTP association); for a secondary peerLane.ts lane it's that lane's own independent PeerConnection. */
+    private readonly pc: RTCPeerConnection
+  ) {
     this.ch.binaryType = "arraybuffer";
   }
   get readyState(): RTCDataChannelState {
@@ -152,6 +190,9 @@ export class RTCDataChannelAdapter implements DataChannel {
   }
   onMessage(handler: (buffer: ArrayBuffer) => void): void {
     this.ch.onmessage = (event) => handler(event.data as ArrayBuffer);
+  }
+  getStats(): Promise<TransportLaneStats | null> {
+    return readSelectedPairStats(this.pc);
   }
 }
 
@@ -187,7 +228,7 @@ export function openNegotiatedChannels(pc: RTCPeerConnection, laneCount = 1): Op
 
   return {
     control: new RTCControlChannelAdapter(controlRaw),
-    lanes: laneRaws.map((raw) => new RTCDataChannelAdapter(raw)),
+    lanes: laneRaws.map((raw) => new RTCDataChannelAdapter(raw, pc)),
     ready
   };
 }
@@ -228,6 +269,50 @@ export interface ConnectionDiagnostics {
   turnTransports: { udp: "unknown" | "reachable" | "failed"; tcp: "unknown" | "reachable" | "failed"; tls: "unknown" | "reachable" | "failed" };
   /** Raw RTCPeerConnectionIceErrorEvent messages, one per failed candidate-gathering attempt, for the diagnostics panel / bug reports. */
   iceCandidateErrors: string[];
+}
+
+/**
+ * Stage of the INITIAL connection attempt, derived purely from real
+ * diagnostics — never a fabricated "trying X now" when nothing actually
+ * indicates that. Meaningful only while no pair has been selected yet; the
+ * caller is responsible for switching to a "connected" narration once
+ * `hasSelectedPair` is true.
+ */
+export type ConnectionStage = "preparing" | "trying-direct" | "falling-back-to-relay";
+
+export function deriveConnectionStage(diagnostics: ConnectionDiagnostics): ConnectionStage {
+  const { localCandidateCounts, turnTransports } = diagnostics;
+  const relayReachable = turnTransports.udp === "reachable" || turnTransports.tcp === "reachable" || turnTransports.tls === "reachable";
+  if (relayReachable) return "falling-back-to-relay";
+  const directCandidatesGathered = localCandidateCounts.host > 0 || localCandidateCounts.srflx > 0;
+  if (directCandidatesGathered) return "trying-direct";
+  return "preparing";
+}
+
+/**
+ * Honest, evidence-based explanation for why the INITIAL connection attempt
+ * never succeeded (the bounded establishment timeout — see session.ts).
+ * Deliberately graded by how much evidence actually exists: hearing back
+ * NOTHING at all (zero candidates, zero TURN transport activity) is the
+ * WEAKEST evidence of a deliberate network block, not the strongest, so
+ * that case gets "may be blocking" rather than an assertion. Only the case
+ * where direct candidates existed AND a relay path was reached AND the
+ * connection still failed to ever select a pair is left for genuinely
+ * unexplained outcomes.
+ */
+export function describeConnectionFailure(diagnostics: ConnectionDiagnostics): string {
+  const { localCandidateCounts, turnTransports, hasSelectedPair } = diagnostics;
+  if (hasSelectedPair) return "The connection was lost unexpectedly. Try again.";
+  const directCandidatesGathered = localCandidateCounts.host > 0 || localCandidateCounts.srflx > 0;
+  const relayReachable = turnTransports.udp === "reachable" || turnTransports.tcp === "reachable" || turnTransports.tls === "reachable";
+
+  if (!directCandidatesGathered && !relayReachable) {
+    return "This network may be blocking the connection methods FD9 can use. Try another network.";
+  }
+  if (directCandidatesGathered && !relayReachable) {
+    return "Direct connectivity failed, and no relay path could be established on this network. Try another network.";
+  }
+  return "A relay path was available but the connection still failed to complete. Try again, or try another network.";
 }
 
 /** Classifies a STUN/TURN server URL string by the transport it actually exercises. */

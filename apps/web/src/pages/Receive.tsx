@@ -71,6 +71,7 @@ export function ReceivePage({ initialRoomId, onExit }: Props) {
         linkQuality={state.linkQuality}
         wakeLockActive={state.wakeLockActive}
         errorMessage={state.errorMessage}
+        connectionStage={state.connectionStage}
       />
       {state.incomingOffer ? (
         <ApprovalDialog offer={state.incomingOffer} onDecide={state.acceptIncoming} />

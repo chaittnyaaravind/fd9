@@ -20,6 +20,7 @@ import { SenderEngine } from "/src/lib/transfer/sender.ts";
 import { ReceiverEngine } from "/src/lib/transfer/receiver.ts";
 import { SyntheticChunkSource } from "/src/lib/transfer/benchmarkSource.ts";
 import { createDiscardSink } from "/src/lib/transfer/sinks.ts";
+import { detectBrowserOs } from "/src/lib/benchmarkResult.ts";
 
 const log = (...args) => {
   const el = document.getElementById("log");
@@ -45,6 +46,11 @@ function resolveSignalingUrl() {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${window.location.hostname}:8787`;
 }
+
+// The canonical BenchmarkResult schema's `network` field is operator-
+// supplied, never guessed (FD9 cannot reliably detect "which Wi-Fi is
+// this" from inside the browser) — append ?network=eduroam, etc.
+const NETWORK_LABEL = new URLSearchParams(window.location.search).get("network") || "unlabeled";
 
 const TOTAL_BYTES = 256 * 1024 * 1024; // 256 MiB, per spec — the ONLY size ever used for the real throughput table
 const TARGET_CHUNK_SIZE = 256 * 1024; // 256 KiB, per spec — clamped per-connection against negotiatedMaxChunkSize(pc0) below, since the raw payload size needs headroom for the 14-byte chunk-frame header within this connection's REAL negotiated SCTP max-message-size
@@ -146,6 +152,45 @@ function fetchIceServers() {
     });
     signaling.send({ type: "request-turn-credentials" });
   });
+}
+
+// Milestone 1, item 4: ONE canonical result shape (see
+// apps/web/src/lib/benchmarkResult.ts's BenchmarkResult) that every run
+// below conforms to, alongside — not instead of — the existing rich
+// per-lane diagnostic object. This does not change what's measured, only
+// gives every future A/B a directly comparable record.
+function toCanonicalResult(run, result, chunkSize, networkLabel) {
+  const lane0 = result.finalStats[0] || {};
+  const { browser, os } = detectBrowserOs();
+  let transport;
+  if (lane0.relayProtocol === "udp") transport = "turn-udp";
+  else if (lane0.relayProtocol === "tcp") transport = "turn-tcp";
+  else if (lane0.localType === "host" || lane0.localType === "srflx") transport = "direct";
+  else transport = run.directOnly ? "direct" : "turn-udp"; // best-known intent when nothing ever connected
+  return {
+    timestamp: new Date().toISOString(),
+    device: navigator.platform || "unknown",
+    browser,
+    os,
+    network: networkLabel,
+    transport,
+    provider: transport.startsWith("turn") ? "azure-coturn" : null,
+    relayProtocol: lane0.relayProtocol ?? null,
+    localCandidateType: lane0.localType ?? null,
+    remoteCandidateType: lane0.remoteType ?? null,
+    rttMs: lane0.rttMs ?? null,
+    requestedBytes: result.requestedBytes,
+    actualBytes: result.actualPayloadBytes,
+    transportBytesSent: result.transportBytesSent,
+    chunkBytes: chunkSize,
+    durationMs: result.durationMs,
+    averageMBps: result.avgMBs,
+    peakMBps: result.peakMBs,
+    retransmittedBytes: lane0.retransmittedBytesSent ?? null,
+    packetsLost: null, // not exposed by getStats() for SCTP DataChannel transport
+    verified: result.verified,
+    integrity: result.status === "completed" && result.verified ? "verified" : result.status === "failed" || result.status === "error" ? "failed" : "not-attempted"
+  };
 }
 
 /** One getStats() snapshot for one RTCPeerConnection — the exact fields item 15 asked for. */
@@ -398,7 +443,7 @@ async function runOneAsSender(run, planIndex, sizeBytes) {
     `[${kind} ${planIndex}] DONE: ${run.label} -> requestedBytes=${sizeBytes} actualPayloadBytes=${actualPayloadBytes} transportBytesSent=${transportBytesSent} verified=${verified} avg=${avgMBs.toFixed(2)}MiB/s peak=${peakMBs.toFixed(2)}MiB/s delivery=${deliveryPct.toFixed(2)}% status=${finalFile.status}${finalFile.error ? ` error=${finalFile.error}` : ""}`
   );
 
-  return {
+  const result = {
     label: run.label,
     requestedLanes: run.laneCount,
     connectedLanes: connectedLaneCount,
@@ -417,6 +462,11 @@ async function runOneAsSender(run, planIndex, sizeBytes) {
     perLaneMBs,
     finalStats
   };
+  // Canonical cross-run record (Milestone 1, item 4) — additive, alongside
+  // the rich per-lane object above, not a replacement for it.
+  result.canonical = toCanonicalResult(run, result, chunkSize, NETWORK_LABEL);
+  log(`[${kind} ${planIndex}] canonical: ${JSON.stringify(result.canonical)}`);
+  return result;
 }
 
 /**

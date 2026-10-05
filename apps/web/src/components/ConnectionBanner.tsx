@@ -1,21 +1,30 @@
 import type { ConnectionPhase } from "../state/session.js";
-import type { LinkQuality } from "../lib/rtc.js";
+import type { ConnectionStage, LinkQuality } from "../lib/rtc.js";
 
 interface Props {
   phase: ConnectionPhase;
   linkQuality: LinkQuality;
   wakeLockActive: boolean;
   errorMessage: string | null;
+  /** Real, diagnostics-derived stage of the INITIAL attempt (see rtc.ts's deriveConnectionStage) — only consulted while phase === "connecting"; never fabricated independently of it. */
+  connectionStage: ConnectionStage;
 }
 
-function describe(phase: ConnectionPhase, linkQuality: LinkQuality): { label: string; cls: string } {
+function describe(phase: ConnectionPhase, linkQuality: LinkQuality, connectionStage: ConnectionStage): { label: string; cls: string } {
   switch (phase) {
     case "idle":
       return { label: "Idle", cls: "" };
     case "waiting-for-peer":
       return { label: "Waiting for the other device to connect…", cls: "" };
     case "connecting":
-      return { label: "Connecting…", cls: "" };
+      switch (connectionStage) {
+        case "preparing":
+          return { label: "Preparing connection…", cls: "" };
+        case "trying-direct":
+          return { label: "Trying direct connection…", cls: "" };
+        case "falling-back-to-relay":
+          return { label: "Direct connection unavailable — using secure relay…", cls: "is-relayed" };
+      }
     case "reconnecting":
       return { label: "Reconnecting…", cls: "is-relayed" };
     case "connected":
@@ -35,8 +44,8 @@ function describe(phase: ConnectionPhase, linkQuality: LinkQuality): { label: st
   }
 }
 
-export function ConnectionBanner({ phase, linkQuality, wakeLockActive, errorMessage }: Props) {
-  const { label, cls } = describe(phase, linkQuality);
+export function ConnectionBanner({ phase, linkQuality, wakeLockActive, errorMessage, connectionStage }: Props) {
+  const { label, cls } = describe(phase, linkQuality, connectionStage);
   return (
     <div className={`banner ${cls}`} role="status" aria-live="polite">
       <span className="dot" aria-hidden="true" />
