@@ -1177,6 +1177,127 @@ a {
   color: var(--text-dim);
 }
 
+/* ---- creator page ---- */
+
+.creator-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-7);
+}
+
+.creator-links .btn {
+  gap: var(--space-2);
+}
+
+.creator-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.creator-stack-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ---- performance page ---- */
+
+.perf-env-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-6);
+  display: inline-block;
+}
+
+.perf-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-6);
+}
+
+.perf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.perf-table th,
+.perf-table td {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.perf-table th {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  background: var(--surface-1);
+}
+
+.perf-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.perf-row-failed td {
+  color: var(--text-dim);
+}
+
+.perf-note {
+  max-width: 68ch;
+}
+
+.perf-note p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: var(--space-4);
+}
+
+.perf-note strong {
+  color: var(--text-high);
+  font-weight: 510;
+}
+
+/* ---- how it works page ---- */
+
+.hiw-diagram {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  margin-bottom: var(--space-7);
+  overflow-x: auto;
+}
+
+@media (max-width: 560px) {
+  .hiw-diagram {
+    font-size: 9px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition-duration: 0.01ms !important;
