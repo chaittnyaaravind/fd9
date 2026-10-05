@@ -28,13 +28,13 @@ function describe(phase: ConnectionPhase, linkQuality: LinkQuality, connectionSt
     case "reconnecting":
       return { label: "Reconnecting…", cls: "is-relayed" };
     case "connected":
-      return linkQuality === "relayed"
-        ? { label: "Connected via relay (TURN) — your network blocked a direct link", cls: "is-relayed" }
-        : { label: "Connected directly, peer-to-peer", cls: "is-direct" };
+      if (linkQuality === "relayed") return { label: "Connected via relay (TURN) — your network blocked a direct link", cls: "is-relayed" };
+      if (linkQuality === "direct") return { label: "Connected directly, peer-to-peer", cls: "is-direct" };
+      return { label: "Connected — confirming route…", cls: "" };
     case "transferring":
-      return linkQuality === "relayed"
-        ? { label: "Transferring via relay (TURN)", cls: "is-relayed" }
-        : { label: "Transferring, connected directly", cls: "is-direct" };
+      if (linkQuality === "relayed") return { label: "Transferring via relay (TURN)", cls: "is-relayed" };
+      if (linkQuality === "direct") return { label: "Transferring, connected directly", cls: "is-direct" };
+      return { label: "Transferring…", cls: "" };
     case "completed":
       return { label: "Transfer complete", cls: "is-connected" };
     case "failed":

@@ -6,6 +6,7 @@ import { CompletionScreen } from "../components/CompletionScreen.js";
 import { DiagnosticsPanel } from "../components/DiagnosticsPanel.js";
 import { FileQueue } from "../components/FileQueue.js";
 import { OverallProgress } from "../components/OverallProgress.js";
+import { TransferProgressVisual } from "../components/TransferProgressVisual.js";
 import { useSessionStore } from "../state/session.js";
 
 interface Props {
@@ -80,6 +81,7 @@ export function ReceivePage({ initialRoomId, onExit }: Props) {
       ) : null}
       {state.files.length > 0 ? (
         <>
+          <TransferProgressVisual files={state.files} quality={state.diagnostics.quality} />
           <OverallProgress files={state.files} />
           <FileQueue files={state.files} onPause={state.pauseFile} onResume={state.resumeFile} onCancel={state.cancelFile} />
         </>

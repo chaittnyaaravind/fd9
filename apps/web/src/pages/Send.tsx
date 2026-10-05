@@ -4,6 +4,7 @@ import { DiagnosticsPanel } from "../components/DiagnosticsPanel.js";
 import { Dropzone } from "../components/Dropzone.js";
 import { FileQueue } from "../components/FileQueue.js";
 import { OverallProgress } from "../components/OverallProgress.js";
+import { TransferProgressVisual } from "../components/TransferProgressVisual.js";
 import { QrPairing } from "../components/QrPairing.js";
 import { CompletionScreen } from "../components/CompletionScreen.js";
 import { useSessionStore } from "../state/session.js";
@@ -60,6 +61,7 @@ export function SendPage({ onExit }: Props) {
       {state.phase === "waiting-for-peer" ? <QrPairing code={state.roomCode} link={state.roomLink} /> : null}
       {state.files.length > 0 ? (
         <>
+          <TransferProgressVisual files={state.files} quality={state.diagnostics.quality} />
           <OverallProgress files={state.files} />
           <FileQueue files={state.files} onPause={state.pauseFile} onResume={state.resumeFile} onCancel={state.cancelFile} />
         </>
