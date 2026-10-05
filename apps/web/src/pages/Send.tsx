@@ -1,4 +1,5 @@
 import { ConnectionBanner } from "../components/ConnectionBanner.js";
+import { ConnectionIndicator } from "../components/ConnectionIndicator.js";
 import { DiagnosticsPanel } from "../components/DiagnosticsPanel.js";
 import { Dropzone } from "../components/Dropzone.js";
 import { FileQueue } from "../components/FileQueue.js";
@@ -55,6 +56,7 @@ export function SendPage({ onExit }: Props) {
         errorMessage={state.errorMessage}
         connectionStage={state.connectionStage}
       />
+      <ConnectionIndicator diagnostics={state.diagnostics} sustainedMBs={state.sustainedMBs} />
       {state.phase === "waiting-for-peer" ? <QrPairing code={state.roomCode} link={state.roomLink} /> : null}
       {state.files.length > 0 ? (
         <>

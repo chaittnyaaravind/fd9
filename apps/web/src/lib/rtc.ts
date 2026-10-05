@@ -267,6 +267,16 @@ export interface ConnectionDiagnostics {
    * configured for that transport, or ICE hasn't finished gathering yet).
    */
   turnTransports: { udp: "unknown" | "reachable" | "failed"; tcp: "unknown" | "reachable" | "failed"; tls: "unknown" | "reachable" | "failed" };
+  /**
+   * The CURRENTLY SELECTED pair's relay transport, specifically — distinct
+   * from `turnTransports` above (which only answers "was this transport
+   * EVER reachable", not "is it the one actually carrying traffic right
+   * now"). null when not relayed (quality !== "relayed") or not yet known.
+   * `candidate.protocol` alone can't tell TURN/TCP and TURN/TLS apart (both
+   * report "tcp") — relayProtocol on the selected local candidate is the
+   * one field that can.
+   */
+  selectedRelayProtocol: "udp" | "tcp" | "tls" | null;
   /** Raw RTCPeerConnectionIceErrorEvent messages, one per failed candidate-gathering attempt, for the diagnostics panel / bug reports. */
   iceCandidateErrors: string[];
 }
@@ -358,6 +368,7 @@ export function watchConnectionDiagnostics(
     let remoteCandidateType: CandidateType = null;
     let localProtocol: string | null = null;
     let remoteProtocol: string | null = null;
+    let selectedRelayProtocol: "udp" | "tcp" | "tls" | null = null;
     let hasSelectedPair = false;
     let rttMs: number | null = null;
     const localCandidateCounts = { host: 0, srflx: 0, relay: 0, prflx: 0 };
@@ -368,6 +379,7 @@ export function watchConnectionDiagnostics(
       let remoteId: string | undefined;
       const candidateTypes = new Map<string, CandidateType>();
       const candidateProtocols = new Map<string, string | null>();
+      const candidateRelayProtocols = new Map<string, "udp" | "tcp" | "tls">();
 
       stats.forEach((report) => {
         if (report.type === "candidate-pair" && (report.state === "succeeded" || report.nominated)) {
@@ -391,6 +403,7 @@ export function watchConnectionDiagnostics(
             const relayProtocol = (report as unknown as { relayProtocol?: string }).relayProtocol;
             if (relayProtocol === "udp" || relayProtocol === "tcp" || relayProtocol === "tls") {
               turnTransports[relayProtocol] = "reachable";
+              candidateRelayProtocols.set(report.id, relayProtocol);
             }
           }
         }
@@ -402,6 +415,7 @@ export function watchConnectionDiagnostics(
         remoteCandidateType = candidateTypes.get(remoteId) ?? null;
         localProtocol = candidateProtocols.get(localId) ?? null;
         remoteProtocol = candidateProtocols.get(remoteId) ?? null;
+        selectedRelayProtocol = candidateRelayProtocols.get(localId) ?? null;
       }
     } catch {
       /* getStats can transiently fail mid-negotiation; next poll retries */
@@ -423,6 +437,7 @@ export function watchConnectionDiagnostics(
       rttMs,
       localProtocol,
       remoteProtocol,
+      selectedRelayProtocol,
       localCandidateCounts,
       turnTransports: { ...turnTransports },
       iceCandidateErrors: [...iceCandidateErrors]

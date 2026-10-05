@@ -150,6 +150,7 @@ const DEFAULT_DIAGNOSTICS: ConnectionDiagnostics = {
   rttMs: null,
   localProtocol: null,
   remoteProtocol: null,
+  selectedRelayProtocol: null,
   localCandidateCounts: { host: 0, srflx: 0, relay: 0, prflx: 0 }
 };
 

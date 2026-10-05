@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ApprovalDialog } from "../components/ApprovalDialog.js";
 import { ConnectionBanner } from "../components/ConnectionBanner.js";
+import { ConnectionIndicator } from "../components/ConnectionIndicator.js";
 import { CompletionScreen } from "../components/CompletionScreen.js";
 import { DiagnosticsPanel } from "../components/DiagnosticsPanel.js";
 import { FileQueue } from "../components/FileQueue.js";
@@ -73,6 +74,7 @@ export function ReceivePage({ initialRoomId, onExit }: Props) {
         errorMessage={state.errorMessage}
         connectionStage={state.connectionStage}
       />
+      <ConnectionIndicator diagnostics={state.diagnostics} sustainedMBs={state.sustainedMBs} />
       {state.incomingOffer ? (
         <ApprovalDialog offer={state.incomingOffer} onDecide={state.acceptIncoming} />
       ) : null}
