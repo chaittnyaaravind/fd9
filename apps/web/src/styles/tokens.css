@@ -1,0 +1,52 @@
+:root {
+  --bg: #0a0908;
+  --surface-1: #151310;
+  --surface-2: #1d1a16;
+  --text-high: #f5f1ea;
+  --text-muted: rgb(245 241 234 / 64%);
+  --text-dim: rgb(245 241 234 / 42%);
+  --hairline: rgb(245 241 234 / 10%);
+  --hairline-strong: rgb(245 241 234 / 18%);
+
+  --accent: #4c8cff;
+  --accent-hover: #6ea0ff;
+  --accent-wash: rgb(76 140 255 / 14%);
+
+  --sand: #d9b88a;
+  --sand-hover: #e6cba3;
+  --sand-wash: rgb(217 184 138 / 14%);
+
+  --success: #3dd68c;
+  --success-wash: rgb(61 214 140 / 14%);
+  --danger: #ff6b5c;
+  --danger-wash: rgb(255 107 92 / 14%);
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-pill: 999px;
+
+  --shadow-card: inset 0 1px 0 rgb(245 241 234 / 5%);
+  --shadow-card-hover: inset 0 1px 0 rgb(245 241 234 / 8%), 0 12px 32px -12px rgb(0 0 0 / 50%);
+  --shadow-dialog: 0 24px 64px -16px rgb(0 0 0 / 60%);
+
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-ui: cubic-bezier(0.4, 0, 0.1, 1);
+  --ease-snap: cubic-bezier(0.35, 0, 0, 1);
+  --dur-hover: 120ms;
+  --dur-ui: 180ms;
+  --dur-panel: 400ms;
+  --dur-reveal: 700ms;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+}

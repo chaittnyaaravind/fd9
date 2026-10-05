@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>fd9 PeerConnection-scaling benchmark (diagnostic tool — not part of the product)</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; background: #0b0d10; color: #e6e6e6; margin: 0; padding: 24px; line-height: 1.5; }
+  h1 { font-size: 1.1rem; color: #9ad; }
+  .box { background: #151922; border: 1px solid #2a2f3a; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  input, button { font-size: 1rem; padding: 8px 12px; border-radius: 6px; border: 1px solid #333; background: #1c2129; color: #eee; }
+  button { cursor: pointer; background: #2563eb; border-color: #2563eb; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+  td, th { border: 1px solid #2a2f3a; padding: 6px 10px; text-align: left; }
+  th { background: #1c2129; }
+  #log { font-family: ui-monospace, monospace; font-size: 0.78rem; white-space: pre-wrap; max-height: 360px; overflow-y: auto; background: #0e1116; padding: 10px; border-radius: 6px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #1c2129; margin-right: 6px; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<h1>fd9 PeerConnection-scaling benchmark — diagnostic tool, not part of the product UI</h1>
+<p>
+  Reuses fd9's REAL production code (<code>SenderEngine</code>, <code>ReceiverEngine</code>, <code>peerLane.ts</code>,
+  <code>rtc.ts</code>) through the real signaling server and the real Azure TURN relay — this is not a reimplementation.
+  Runs exactly: 1, 2, 4, 8 independent RTCPeerConnections (256&nbsp;MiB, 256&nbsp;KiB chunks, reliable+ordered, ONE run each),
+  then one DIRECT_ONLY run (STUN only, no TURN). No old chunk-size/reliability matrix. Receiver discards every byte
+  (DiscardSink) to isolate transport throughput from storage.
+</p>
+
+<div class="box">
+  <div><span class="pill" id="status">idle</span></div>
+  <div style="margin-top: 10px;">
+    <button id="createBtn">Create session (be the sender)</button>
+    &nbsp;or&nbsp;
+    <input id="codeInput" placeholder="room code" style="width: 100px; text-transform: uppercase;" />
+    <button id="joinBtn">Join (be the receiver)</button>
+  </div>
+  <div id="roomCodeDisplay" style="margin-top: 10px; font-size: 1.2rem;"></div>
+</div>
+
+<div class="box">
+  <p style="margin-top:0;"><strong>Step 1 — smoke test (small, fixed 4&nbsp;MiB payload, connectivity/negotiation check ONLY).</strong>
+  Never populates the real results table below. Run this first; only proceed to Step 2 once it reports clean.</p>
+  <button id="smokeBtn" disabled>Run smoke test: 1 PC, 2 PC (TURN)</button>
+  <div id="smokeResultsTable" style="margin-top: 10px;">No smoke results yet.</div>
+  <button id="copySmokeBtn" style="margin-top: 10px;" disabled>Copy smoke results as Markdown</button>
+</div>
+
+<div class="box">
+  <p style="margin-top:0;"><strong>Step 2 — the real 256&nbsp;MiB sweep.</strong> Only run after the smoke test above is clean.</p>
+  <button id="startBtn" disabled>Run full sweep: 1, 2, 4, 8 PCs (TURN) + 1 direct-only</button>
+</div>
+
+<div class="box">
+  <div id="resultsTable">No results yet.</div>
+  <button id="copyBtn" style="margin-top: 10px;" disabled>Copy results as Markdown table</button>
+</div>
+
+<div class="box">
+  <div id="log"></div>
+</div>
+
+<script type="module" src="/pc-scaling-bench.js"></script>
+</body>
+</html>

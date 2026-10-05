@@ -1,0 +1,2 @@
+Fd9 Playwright fixture file
+Line two of content.

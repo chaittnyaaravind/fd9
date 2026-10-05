@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>fd9 transport benchmark (diagnostic tool — not part of the product)</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; background: #0b0d10; color: #e6e6e6; margin: 0; padding: 24px; line-height: 1.5; }
+  h1 { font-size: 1.1rem; color: #9ad; }
+  .box { background: #151922; border: 1px solid #2a2f3a; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  input, button { font-size: 1rem; padding: 8px 12px; border-radius: 6px; border: 1px solid #333; background: #1c2129; color: #eee; }
+  button { cursor: pointer; background: #2563eb; border-color: #2563eb; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+  td, th { border: 1px solid #2a2f3a; padding: 6px 10px; text-align: left; }
+  th { background: #1c2129; }
+  #log { font-family: ui-monospace, monospace; font-size: 0.8rem; white-space: pre-wrap; max-height: 300px; overflow-y: auto; background: #0e1116; padding: 10px; border-radius: 6px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #1c2129; margin-right: 6px; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<h1>fd9 transport benchmark — diagnostic tool, not part of the product UI</h1>
+<p>Reuses fd9's real signaling server (for SDP/ICE exchange only — same as a real pairing) and its real TURN-credential endpoint, but creates its OWN RTCPeerConnection and its OWN raw DataChannels, completely separate from fd9's file-transfer protocol. No OPFS, no IndexedDB, no fd9 application code touched.</p>
+
+<div class="box">
+  <div><span class="pill" id="status">idle</span> <span class="pill" id="candidatePair">pair: —</span></div>
+  <div style="margin-top: 10px;">
+    <button id="createBtn">Create session (be the sender)</button>
+    &nbsp;or&nbsp;
+    <input id="codeInput" placeholder="room code" style="width: 100px; text-transform: uppercase;" />
+    <button id="joinBtn">Join (be the receiver)</button>
+  </div>
+  <div id="roomCodeDisplay" style="margin-top: 10px; font-size: 1.2rem;"></div>
+</div>
+
+<div class="box">
+  <label>Total bytes per sub-test: </label>
+  <input id="totalMiB" value="256" style="width: 60px;" /> MiB
+  <button id="startBtn" disabled>Run full matrix (sender only)</button>
+</div>
+
+<div class="box">
+  <div id="resultsTable"></div>
+  <button id="copyBtn" style="margin-top: 10px;" disabled>Copy results as Markdown table</button>
+</div>
+
+<div class="box">
+  <div id="log"></div>
+</div>
+
+<script type="module" src="/bench.js"></script>
+</body>
+</html>

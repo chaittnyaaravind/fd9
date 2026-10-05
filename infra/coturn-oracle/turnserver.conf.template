@@ -1,0 +1,66 @@
+# coturn config template for fd9's self-hosted TURN relay on an Oracle
+# Cloud "Always Free" VM. Copy to /etc/turnserver.conf and fill in the
+# placeholders (setup.sh does this for you from environment variables).
+#
+# Ports this matches the fd9 spec's requirement for:
+#   3478 UDP  — primary TURN relay transport
+#   3478 TCP  — TURN-over-TCP fallback (for UDP-hostile networks)
+#   5349 TLS  — TURN-over-TLS (TURNS), standard port
+#   443  TLS  — SECOND TLS listener on the port almost no restrictive
+#               network blocks (campus/hotel/airport Wi-Fi that allows
+#               only 80/443) — this is the exact capability that was
+#               half-deployed and apparently broke the previous Fly.io
+#               relay's UDP listener; here it's additive, not a replacement.
+
+# A stable name for this relay — any resolvable hostname works, used in
+# TURN's long-term-credential realm and in log output.
+realm=__REALM__
+
+# use-auth-secret (coturn's TURN REST API / RFC-adjacent auth scheme) is
+# what apps/signaling/src/turn.ts's TURN_SECRET path expects: it mints a
+# short-lived username:credential pair per session via HMAC-SHA1 over this
+# SAME secret. Keep this in sync with TURN_SECRET on the signaling server —
+# it is the one value both sides must agree on.
+use-auth-secret
+static-auth-secret=__TURN_SECRET__
+
+# Primary TURN relay ports.
+listening-port=3478
+
+# TLS (turns:/5349 and the 443 fallback) is appended below this line by
+# setup.sh ONLY when CERT_PATH/PKEY_PATH are provided — it needs a real
+# domain name pointed at this VM for a valid cert, which isn't always
+# available on day one. Without it, plain turn: on UDP+TCP 3478 still works
+# fully as a fallback relay; TLS can be added later without re-provisioning
+# anything, by re-running setup.sh once a domain/cert exist.
+# __TLS_BLOCK__
+
+# Bounded UDP relay port range — the actual media/data relay ports TURN
+# allocates per session, separate from the control ports above. This is
+# what "a bounded UDP relay port range" in the spec means: without this,
+# coturn would pick ephemeral ports from the OS's full dynamic range, which
+# is unfirewallable in practice. Oracle Cloud's VCN security list (see
+# README.md in this directory) must open exactly this same range as
+# ingress/egress UDP, or allocations will silently fail even though the
+# control port itself is reachable — this is the single most common way a
+# coturn deployment looks "up" (TCP control port answers) while actually
+# being unusable for real relay traffic, which is the exact Fly.io failure
+# mode this replaces.
+min-port=49152
+max-port=49352
+
+# This relay only ever proxies real-time media/data for fd9 sessions, never
+# fd9's own loopback/internal addresses — blocks it from being abused as an
+# open relay into the VM's private network.
+no-loopback-peers
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+
+# Quieter logs by default; set verbose if actively debugging.
+no-stdout-log
+log-file=/var/log/turnserver/turnserver.log
+simple-log
+
+# fd9 never needs TURN to relay to itself nor needs the CLI admin interface.
+no-cli

@@ -1,0 +1,27 @@
+{
+  "name": "fd9",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "postinstall": "npm run build -w packages/protocol",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:signaling": "npm run dev -w apps/signaling",
+    "build": "npm run build -w packages/protocol && npm run build -w apps/signaling",
+    "build:all": "npm run build -w packages/protocol && npm run build -w apps/signaling && npm run build -w apps/web",
+    "build:web": "npm run build -w packages/protocol && npm run build -w apps/web",
+    "start": "node apps/signaling/dist/server.js",
+    "test": "npm run test -w packages/protocol && npm run test -w apps/signaling && npm run test -w apps/web",
+    "test:e2e": "npm run test:e2e -w apps/web",
+    "typecheck": "npm run typecheck -w packages/protocol && npm run typecheck -w apps/signaling && npm run typecheck -w apps/web"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
