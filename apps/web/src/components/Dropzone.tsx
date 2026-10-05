@@ -48,7 +48,6 @@ export function Dropzone({ onFiles, disabled }: Props) {
         disabled={disabled}
         style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 }}
         tabIndex={-1}
-        aria-hidden="true"
         onChange={(e) => handleFiles(e.target.files)}
       />
     </label>

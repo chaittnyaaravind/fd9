@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import type { IncomingOffer } from "../lib/transfer/receiver.js";
 import type { FileSink } from "../lib/transfer/sinks.js";
@@ -20,8 +21,40 @@ interface Props {
 
 export function ApprovalDialog({ offer, onDecide }: Props) {
   const reduceMotion = useReducedMotion();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const totalBytes = offer.files.reduce((sum, f) => sum + f.size, 0);
+
+  // Standard modal dialog pattern: move focus in on open, trap Tab inside
+  // while open, and let Escape act as a (safe) decline.
+  useEffect(() => {
+    dialogRef.current?.querySelector<HTMLElement>(".btn-primary")?.focus();
+  }, []);
+
+  function focusable(): HTMLElement[] {
+    if (!dialogRef.current) return [];
+    return Array.from(dialogRef.current.querySelectorAll<HTMLElement>("button:not(:disabled)"));
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      decline();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const els = focusable();
+    if (els.length === 0) return;
+    const first = els[0];
+    const last = els[els.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   const [storage, setStorage] = useState<StorageEstimate | null>(null);
   const mechanism = describeStorageMechanism(offer.files.length);
@@ -69,10 +102,12 @@ export function ApprovalDialog({ offer, onDecide }: Props) {
       transition={{ duration: reduceMotion ? 0 : 0.2 }}
     >
       <motion.div
+        ref={dialogRef}
         className="dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="offer-title"
+        onKeyDown={handleKeyDown}
         initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
         animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 340, damping: 28 }}

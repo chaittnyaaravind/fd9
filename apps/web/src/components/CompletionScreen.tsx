@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { IconCheck } from "./icons.js";
 import type { ReadyFile } from "../state/session.js";
 
@@ -41,14 +41,15 @@ function ReadyRow({ name, blob }: { name: string; blob: Blob | null }) {
 }
 
 export function CompletionScreen({ role, readyFiles, onStartOver }: Props) {
+  const reduceMotion = useReducedMotion();
   return (
     <div className="completion">
       <motion.div
         className="badge"
         aria-hidden="true"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 300, damping: 18 }}
+        initial={reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+        animate={reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+        transition={reduceMotion ? { duration: 0.15 } : { type: "spring", stiffness: 300, damping: 18 }}
       >
         <IconCheck width={28} height={28} />
       </motion.div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion, AnimatePresence } from "motion/react";
 import { IconClose, IconGithub, IconMenu } from "./icons.js";
 import { GITHUB_URL } from "../lib/creatorLinks.js";
@@ -26,6 +26,15 @@ export function Nav({ scrolled, current, onNavigate }: Props) {
     setMenuOpen(false);
     onNavigate(path);
   }
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
 
   return (
     <header className={`topbar${scrolled ? " is-scrolled" : ""}`}>
