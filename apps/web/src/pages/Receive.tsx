@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Reveal } from "../components/Reveal.js";
+import { IconDownload } from "../components/icons.js";
 import { ApprovalDialog } from "../components/ApprovalDialog.js";
 import { ConnectionBanner } from "../components/ConnectionBanner.js";
 import { ConnectionIndicator } from "../components/ConnectionIndicator.js";
@@ -33,27 +35,51 @@ export function ReceivePage({ initialRoomId, onExit }: Props) {
   if (!joining) {
     return (
       <div className="container">
-        <div className="eyebrow">Receive files</div>
-        <h1 className="hero-title" style={{ fontSize: "2rem" }}>
-          Enter the code
-        </h1>
-        <form onSubmit={join}>
-          <input
-            className="code-input"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="ABC123"
-            maxLength={8}
-            autoFocus
-            aria-label="Room code"
-          />
-          <button className="btn btn-primary" type="submit" style={{ width: "100%", marginTop: "var(--space-4)" }} disabled={code.trim().length < 4}>
-            Join session
+        <Reveal>
+          <div className="eyebrow">Receive files</div>
+        </Reveal>
+        <Reveal delay={60}>
+          <h1 className="hero-title" style={{ fontSize: "2rem" }}>
+            Enter the code
+          </h1>
+        </Reveal>
+        <Reveal delay={120}>
+          <p className="hero-sub" style={{ marginBottom: "var(--space-5)" }}>
+            Ask the sender for the 6-character code shown on their screen, or scan their QR code to open this page
+            pre-filled.
+          </p>
+        </Reveal>
+        <Reveal delay={160}>
+          <div className="receive-panel">
+            <div className="receive-badge" aria-hidden="true">
+              <IconDownload width={22} height={22} />
+            </div>
+            <form onSubmit={join} style={{ width: "100%" }}>
+              <input
+                className="code-input"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="ABC123"
+                maxLength={8}
+                autoFocus
+                aria-label="Room code"
+              />
+              <button
+                className="btn btn-primary"
+                type="submit"
+                style={{ width: "100%", marginTop: "var(--space-4)" }}
+                disabled={code.trim().length < 4}
+              >
+                Join session
+              </button>
+            </form>
+          </div>
+        </Reveal>
+        <Reveal delay={200}>
+          <button className="btn btn-secondary" style={{ marginTop: "var(--space-4)" }} onClick={onExit}>
+            Back
           </button>
-        </form>
-        <button className="btn btn-secondary" style={{ marginTop: "var(--space-4)" }} onClick={onExit}>
-          Back
-        </button>
+        </Reveal>
       </div>
     );
   }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import type { IncomingOffer } from "../lib/transfer/receiver.js";
 import type { FileSink } from "../lib/transfer/sinks.js";
 import {
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function ApprovalDialog({ offer, onDecide }: Props) {
+  const reduceMotion = useReducedMotion();
   const [busy, setBusy] = useState(false);
   const totalBytes = offer.files.reduce((sum, f) => sum + f.size, 0);
 
@@ -59,8 +61,22 @@ export function ApprovalDialog({ offer, onDecide }: Props) {
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation">
-      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="offer-title">
+    <motion.div
+      className="dialog-backdrop"
+      role="presentation"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2 }}
+    >
+      <motion.div
+        className="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="offer-title"
+        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
+        animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 340, damping: 28 }}
+      >
         <h2 id="offer-title">Incoming files</h2>
         <p style={{ color: "var(--text-muted)", margin: 0 }}>
           {offer.files.length} file{offer.files.length === 1 ? "" : "s"} · {formatBytes(totalBytes)} total
@@ -90,7 +106,7 @@ export function ApprovalDialog({ offer, onDecide }: Props) {
             {busy ? "Preparing…" : insufficientStorage ? "Accept anyway" : "Accept"}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
