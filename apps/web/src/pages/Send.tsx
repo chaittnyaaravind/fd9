@@ -43,7 +43,7 @@ export function SendPage({ onExit }: Props) {
   if (state.phase === "completed") {
     return (
       <div className="container">
-        <CompletionScreen role="sender" readyFiles={state.readyFiles} onStartOver={onExit} />
+        <CompletionScreen role="sender" readyFiles={state.readyFiles} files={state.files} onStartOver={onExit} />
       </div>
     );
   }

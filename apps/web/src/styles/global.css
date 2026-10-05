@@ -760,6 +760,11 @@ a {
   justify-content: center;
 }
 
+.completion .badge.is-partial {
+  background: rgb(245 241 234 / 8%);
+  color: var(--text-muted);
+}
+
 .ready-list {
   width: 100%;
   display: flex;

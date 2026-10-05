@@ -87,7 +87,7 @@ export function ReceivePage({ initialRoomId, onExit }: Props) {
   if (state.phase === "completed") {
     return (
       <div className="container">
-        <CompletionScreen role="receiver" readyFiles={state.readyFiles} onStartOver={onExit} />
+        <CompletionScreen role="receiver" readyFiles={state.readyFiles} files={state.files} onStartOver={onExit} />
       </div>
     );
   }
