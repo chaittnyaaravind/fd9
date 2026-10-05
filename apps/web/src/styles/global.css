@@ -84,7 +84,7 @@ a {
 }
 
 .wordmark small {
-  color: var(--text-dim);
+  color: var(--text-muted);
   font-weight: 400;
   margin-left: var(--space-2);
 }
@@ -219,7 +219,7 @@ a {
 
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--bg);
 }
 
 .btn-primary:hover {

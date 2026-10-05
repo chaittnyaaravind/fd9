@@ -96,7 +96,7 @@ export function CreatorPage() {
 
       <section className="section">
         <Reveal>
-          <div className="eyebrow">Engineering challenges</div>
+          <h2 className="eyebrow">Engineering challenges</h2>
         </Reveal>
         <div className="steps" style={{ marginTop: "var(--space-5)" }}>
           {CHALLENGES.map((c, i) => (

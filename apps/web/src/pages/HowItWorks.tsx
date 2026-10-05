@@ -77,6 +77,9 @@ export function HowItWorksPage() {
       </Reveal>
 
       <section className="section">
+        <Reveal>
+          <h2 className="eyebrow">Stage by stage</h2>
+        </Reveal>
         <div className="steps">
           {STAGES.map((s, i) => (
             <Reveal key={s.n} delay={i * 70} className="step" direction={i % 2 ? "right" : "left"}>

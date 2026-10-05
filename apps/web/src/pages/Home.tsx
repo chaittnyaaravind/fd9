@@ -132,7 +132,7 @@ export function HomePage({ onSend, onReceive }: Props) {
       <section className="section">
         <div className="container">
           <Reveal>
-            <div className="eyebrow">How it works</div>
+            <h2 className="eyebrow">How it works</h2>
           </Reveal>
           <div className="steps">
             {STEPS.map((s, i) => (

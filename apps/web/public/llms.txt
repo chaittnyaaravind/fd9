@@ -1,0 +1,10 @@
+# Fd9
+
+> Peer-to-peer file transfer for the browser. Two devices pair with a QR code or a short code, then move files directly between them over WebRTC — Fd9's own server never sees file contents, only the handshake that connects the two browsers.
+
+## Pages
+
+- [Send or receive files](https://fd9-web.vercel.app/): pair two browsers and transfer directly between them.
+- [How it works](https://fd9-web.vercel.app/how-it-works): the engineering underneath — signaling, NAT traversal, backpressure, and byte-level integrity verification.
+- [Performance](https://fd9-web.vercel.app/performance): real benchmark data from physical device tests, not a fabricated "maximum speed" claim.
+- [Creator](https://fd9-web.vercel.app/creator): who built Fd9, the stack it's built with, and the real engineering problems that came up along the way.
