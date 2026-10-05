@@ -55,3 +55,27 @@ export function IconBolt(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function IconGithub(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2-.2 4.5-1 4.5-5A4 4 0 0 0 18 7.4c.4-1.3.4-2.6 0-3.9 0 0-1.2-.4-3.7 1.3a12.8 12.8 0 0 0-6.6 0C5.2 3.1 4 3.5 4 3.5c-.4 1.3-.4 2.6 0 3.9A4 4 0 0 0 3 10.5c0 4 2.5 4.8 4.5 5-.6.6-.6 1.2-.5 2V21" />
+    </svg>
+  );
+}
+
+export function IconMenu(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+export function IconClose(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
