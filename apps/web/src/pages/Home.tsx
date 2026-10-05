@@ -3,6 +3,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { Reveal } from "../components/Reveal.js";
 import { TransferVisual } from "../components/TransferVisual.js";
+import { HeroCanvas } from "../components/HeroCanvas.js";
 import { QuoteSection } from "../components/QuoteSection.js";
 import { IconDownload, IconUpload } from "../components/icons.js";
 
@@ -88,9 +89,14 @@ function Hero() {
 
   return (
     <section className="hero-section" ref={ref}>
+      <HeroCanvas />
       <motion.div
         className="container"
-        style={reduceMotion ? undefined : { opacity, scale, y }}
+        style={{
+          position: "relative",
+          zIndex: 1,
+          ...(reduceMotion ? undefined : { opacity, scale, y })
+        }}
       >
         <Reveal>
           <div className="eyebrow">Device to device</div>

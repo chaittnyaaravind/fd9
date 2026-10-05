@@ -799,6 +799,21 @@ a {
   z-index: -1;
 }
 
+.hero-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  mask-image: radial-gradient(ellipse 60% 70% at 50% 35%, black 40%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 70% at 50% 35%, black 40%, transparent 85%);
+}
+
+.hero-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .scroll-cue {
   display: flex;
   justify-content: center;
