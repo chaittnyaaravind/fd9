@@ -56,7 +56,7 @@ export function Nav({ scrolled, current, onNavigate }: Props) {
       </nav>
 
       <div className="nav-actions">
-        <a className="nav-icon-link" href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="FD9 on GitHub">
+        <a className="nav-icon-link" href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="GitHub">
           <IconGithub width={18} height={18} />
         </a>
         <button className="btn btn-primary nav-cta" onClick={() => go("/send")}>
