@@ -138,6 +138,45 @@ function waitWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+/** Bounds the signaling WebSocket's own opening handshake (e.g. a CORS/origin rejection, or the server being unreachable) — distinct from CONNECTION_ESTABLISH_TIMEOUT_MS, which only covers ICE/peer connection after signaling is already open. */
+const SIGNALING_CONNECT_TIMEOUT_MS = 15000;
+
+class SignalingUnavailableError extends Error {
+  constructor() {
+    super("Could not reach the signaling server.");
+    this.name = "SignalingUnavailableError";
+  }
+}
+
+/**
+ * Resolves once `client` reaches "open"; rejects on "closed" (e.g. the
+ * server rejected the Origin, or the handshake otherwise failed) or on
+ * timeout. Without this, a rejected handshake left the caller awaiting a
+ * promise that only ever listened for "open" — "closed" was silently
+ * ignored, so the UI hung on "Creating a session…"/"Waiting for the other
+ * device…" forever with no error and no way to retry.
+ */
+function waitForSignalingOpen(client: SignalingClient, ms = SIGNALING_CONNECT_TIMEOUT_MS): Promise<void> {
+  if (client.state === "open") return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      unsub();
+      reject(new SignalingUnavailableError());
+    }, ms);
+    const unsub = client.onStateChange((state) => {
+      if (state === "open") {
+        clearTimeout(timer);
+        unsub();
+        resolve();
+      } else if (state === "closed") {
+        clearTimeout(timer);
+        unsub();
+        reject(new SignalingUnavailableError());
+      }
+    });
+  });
+}
+
 const DEFAULT_DIAGNOSTICS: ConnectionDiagnostics = {
   quality: "unknown",
   turnTransports: { udp: "unknown", tcp: "unknown", tls: "unknown" },
@@ -504,14 +543,14 @@ export const useSessionStore = create<Fd9State>((set, get) => {
     watchSignalingState(signaling);
     stopNetworkWatch?.();
     stopNetworkWatch = startNetworkWatch();
-    await new Promise<void>((resolve) => {
-      const unsub = signaling!.onStateChange((state) => {
-        if (state === "open") {
-          unsub();
-          resolve();
-        }
-      });
-    });
+    try {
+      await waitForSignalingOpen(signaling);
+    } catch {
+      if (!TERMINAL_PHASES.has(get().phase)) {
+        set({ phase: "failed", errorMessage: "Could not reach the signaling server. Check your connection and try again." });
+      }
+      return;
+    }
 
     signaling.send({ type: "create-room" });
     bindLifecycleSignaling(signaling);
@@ -831,14 +870,14 @@ export const useSessionStore = create<Fd9State>((set, get) => {
       watchSignalingState(signaling);
       stopNetworkWatch?.();
       stopNetworkWatch = startNetworkWatch();
-      await new Promise<void>((resolve) => {
-        const unsub = signaling!.onStateChange((state) => {
-          if (state === "open") {
-            unsub();
-            resolve();
-          }
-        });
-      });
+      try {
+        await waitForSignalingOpen(signaling);
+      } catch {
+        if (!TERMINAL_PHASES.has(get().phase)) {
+          set({ phase: "failed", errorMessage: "Could not reach the signaling server. Check your connection and try again." });
+        }
+        return;
+      }
 
       signaling.send({ type: "join-room", code: joinBy.code, roomId: joinBy.roomId });
       bindLifecycleSignaling(signaling);
